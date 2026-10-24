@@ -182,7 +182,11 @@ const functions = {
 		if (!fs.existsSync(path) || !fs.statSync(path).isFile()) {
 			return "No such file";
 		}
-		return readFileForModel(path);
+		const cont = readFileForModel(path);
+		if (cont.length > 10485760) {
+			return "File is over 10485760 characters long";
+		}
+		return cont;
 	},
 	writeFile: ({ path, data }) => {
 		path = fixPath(path, "write");
