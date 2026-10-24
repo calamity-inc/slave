@@ -162,9 +162,14 @@ const functions = {
 			.filter(file => !isOutOfReach(file));
 		const res = [];
 		for (const file of files) {
-			const matches = readFileForModel(file).split(substring).length - 1;
-			if (matches) {
-				res.push(`${file} has ${matches} match${matches == 1 ? "" : "es"}`);
+			try {
+				const matches = readFileForModel(file).split(substring).length - 1;
+				if (matches) {
+					res.push(`${file} has ${matches} match${matches == 1 ? "" : "es"}`);
+				}
+			}
+			catch (e) {
+				// file might be busy, skip it
 			}
 		}
 		return res.join("\n");
