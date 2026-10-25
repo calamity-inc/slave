@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync, spawnSync } from "node:child_process";
+import { randomInt } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -109,17 +110,12 @@ const writeFileFromModel = (filePath, data, usesCRLF) => {
 	fs.writeFileSync(filePath, usesCRLF ? normalized.replaceAll("\n", "\r\n") : normalized, "utf8");
 };
 
-let used_docker;
+let sandbox_name;
 const ensureSandbox = () => {
-	if (!used_docker) {
-		try {
-			// `docker pull ghcr.io/calamity-inc/slave-sandbox` is not needed to get the image, but would be needed to update it.
-			execFileSync("docker", ["run", "-d", "--name", "slave-sandbox", "ghcr.io/calamity-inc/slave-sandbox", "sleep", "infinity"], { encoding: "utf8" });
-		}
-		catch (e) {
-			// container may already exist if it was not cleaned up previously. this is okay-ish.
-		}
-		used_docker = true;
+	if (!sandbox_name) {
+		sandbox_name = "slave-sandbox-" + Array.from({ length: 10 }, () => "abcdefghijklmnopqrstuvwxyz0123456789"[randomInt(36)]).join("");
+		// `docker pull ghcr.io/calamity-inc/slave-sandbox` is not needed to get the image, but would be needed to update it.
+		execFileSync("docker", ["run", "-d", "--name", sandbox_name, "ghcr.io/calamity-inc/slave-sandbox", "sleep", "infinity"], { encoding: "utf8" });
 	}
 };
 
@@ -217,7 +213,7 @@ const functions = {
 		if (typeof args == "string") {
 			args = JSON.parse(args);
 		}
-		const result = spawnSync("docker", [ "exec", "slave-sandbox", command, ...args ], { encoding: "utf8" });
+		const result = spawnSync("docker", [ "exec", sandbox_name, command, ...args ], { encoding: "utf8" });
 		const output = (result.stdout ?? "") + (result.stderr ?? "");
 		if (result.error) {
 			return (output || result.error.message).trimEnd();
@@ -237,7 +233,7 @@ const functions = {
 		}
 		ensureSandbox();
 		try {
-			execFileSync("docker", ["cp", "-L", hostPath, `slave-sandbox:${sbxPath}`], { encoding: "utf8" });
+			execFileSync("docker", ["cp", "-L", hostPath, `${sandbox_name}:${sbxPath}`], { encoding: "utf8" });
 			return "OK";
 		}
 		catch (e) {
@@ -253,7 +249,7 @@ const functions = {
 			return "Host path must point to a file";
 		}
 		ensureSandbox();
-		execFileSync("docker", ["cp", "-L", `slave-sandbox:${sbxPath}`, hostPath], { encoding: "utf8" });
+		execFileSync("docker", ["cp", "-L", `${sandbox_name}:${sbxPath}`, hostPath], { encoding: "utf8" });
 		return "OK";
 	},
 	/*system: ({ command }) => {
@@ -618,9 +614,11 @@ const overrides = [profileToString(profile)];
 state.providerStates[profile.provider] ??= {};
 if (options.continue || options.cont) {
 	previous_provider_state = state.providerStates[profile.provider].previous;
+	sandbox_name = state.providerStates[profile.provider].sandbox_name;
 }
 else if (options.amend) {
 	previous_provider_state = state.providerStates[profile.provider].previous_previous;
+	sandbox_name = state.providerStates[profile.provider].sandbox_name;
 }
 const filesystemEnabled = options.fs !== false && !options.nofs;
 initTools(filesystemEnabled, options.sandbox, options.web);
@@ -669,11 +667,12 @@ else {
 }
 state.providerStates[profile.provider].previous_previous = previous_provider_state;
 state.providerStates[profile.provider].previous = response.state;
+if (state.providerStates[profile.provider].sandbox_name && state.providerStates[profile.provider].sandbox_name != sandbox_name) {
+	execFileSync("docker", ["rm", "-f", state.providerStates[profile.provider].sandbox_name], { encoding: "utf8" });
+}
+state.providerStates[profile.provider].sandbox_name = sandbox_name;
 saveState();
 if (response.used_tools) {
-	if (used_docker) {
-		execFileSync("docker", ["rm", "-f", "slave-sandbox"], { encoding: "utf8" });
-	}
 	logWriteBoth("");
 }
 console.log(markdownToConsoleText(response.output_text) + "\n");
