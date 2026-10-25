@@ -30,24 +30,24 @@ async function main() {
 
 	if (options.createProfile || options.updateProfile) {
 		if (!program.args[0] || !program.args[1]) {
-			console.log("Syntax: slave --create-profile <name> <provider> <model>");
+			console.error("Syntax: slave --create-profile <name> <provider> <model>");
 			process.exit(1);
 		}
 		const provider = program.args[0];
 		if (provider != "openai" && provider != "anthropic" && !provider.startsWith("http://") && !provider.startsWith("https://")) {
-			console.log(`Invalid provider: ${provider}`);
+			console.error(`Invalid provider: ${provider}`);
 			process.exit(1);
 		}
 		const name = options.createProfile || options.updateProfile;
 		if (name in state.profiles) {
 			if (options.createProfile) {
-				console.log("Profile already exists. Did you mean --update-profile?");
+				console.error("Profile already exists. Did you mean --update-profile?");
 				process.exit(1);
 			}
 		}
 		else {
 			if (options.updateProfile) {
-				console.log("No such profile. Did you mean --create-profile?");
+				console.error("No such profile. Did you mean --create-profile?");
 				process.exit(1);
 			}
 		}
@@ -64,7 +64,7 @@ async function main() {
 	}
 	if (options.setDefault) {
 		if (!program.args[0]) {
-			console.log("No profile name given.");
+			console.error("No profile name given.");
 			process.exit(1);
 		}
 		state.defaultProfile = program.args[0];
@@ -110,20 +110,20 @@ async function main() {
 	const profile = state.profiles[options.profile ?? state.defaultProfile];
 	if (!profile) {
 		if (Object.keys(state.profiles).length == 0) {
-			console.log(markdownToConsoleText("You don't have any profiles. Use e.g. `slave --create-profile luna openai gpt-6-luna --set-default` to create one."));
+			console.error(markdownToConsoleText("You don't have any profiles. Use e.g. `slave --create-profile luna openai gpt-6-luna --set-default` to create one."));
 		}
 		else if (options.profile) {
-			console.log(markdownToConsoleText(`No such profile. Use e.g. \`slave --create-profile ${options.profile} openai gpt-6-luna\` to create it.`));
+			console.error(markdownToConsoleText(`No such profile. Use e.g. \`slave --create-profile ${options.profile} openai gpt-6-luna\` to create it.`));
 		}
 		else {
-			console.log(markdownToConsoleText(`You did not specify a profile and no profile is set as your default. Use e.g. \`slave --set-default ${Object.keys(state.profiles)[0]}\` to set **${Object.keys(state.profiles)[0]}** as your default profile.`));
+			console.error(markdownToConsoleText(`You did not specify a profile and no profile is set as your default. Use e.g. \`slave --set-default ${Object.keys(state.profiles)[0]}\` to set **${Object.keys(state.profiles)[0]}** as your default profile.`));
 		}
 		process.exit(1);
 	}
 
 	let prompt = program.args.join(" ").trim();
 	if (!prompt) {
-		console.log("No prompt given.");
+		console.error("No prompt given.");
 		process.exit(1);
 	}
 
