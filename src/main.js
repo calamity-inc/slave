@@ -15,9 +15,10 @@ async function main() {
 		.option("-w, --web", "allow the model to search the web")
 		.option("-n, --no-fs", "disable filesystem access").option("--nofs")
 		.option("-s, --sandbox", "allow the model to use a docker container")
-		.option("-p, --profile <name>", "profile name", "default")
+		.option("-p, --profile <name>", "profile name")
 		.option("--create-profile <name> <provider> <model>", "create a profile")
 		.option("--update-profile <name> <provider> <model>", "update a profile")
+		.option("--set-default", "set default profile")
 		.option("--list-profiles", "list all profiles")
 		.option("--delete-profile <name>", "delete a profile")
 		.option("--update-api-key <provider>", "update an API key")
@@ -51,11 +52,24 @@ async function main() {
 			}
 		}
 		state.profiles[name] = { provider, model: program.args[1] };
+		if (options.setDefault) {
+			state.defaultProfile = name;
+		}
 		if (!state.apiKeys[provider]) {
 			await promptForApiKey(provider);
 		}
 		saveState();
-		console.log(`${options.createProfile ? "Created" : "Updated"} ${name} profile.`);
+		console.log(`${options.createProfile ? "Created" : "Updated"} ${name} profile${options.setDefault ? " and set as your default" : ""}.`);
+		process.exit(0);
+	}
+	if (options.setDefault) {
+		if (!program.args[0]) {
+			console.log("No profile name given.");
+			process.exit(1);
+		}
+		state.defaultProfile = program.args[0];
+		saveState();
+		console.log(`Set ${program.args[0]} as your default profile.`);
 		process.exit(0);
 	}
 	if (options.listProfiles) {
@@ -64,14 +78,24 @@ async function main() {
 			console.log("No profiles.");
 		}
 		for (const name of names) {
-			console.log(`${name}: ${profileToString(state.profiles[name])}`);
+			if (state.defaultProfile == name) {
+				console.log(`${name} (default): ${profileToString(state.profiles[name])}`);
+			}
+			else {
+				console.log(`${name}: ${profileToString(state.profiles[name])}`);
+			}
 		}
 		process.exit(0);
 	}
 	if (options.deleteProfile) {
-		delete state.profiles[options.deleteProfile];
-		saveState();
-		console.log(`Deleted ${options.deleteProfile} profile.`);
+		if (options.deleteProfile in state.profiles) {
+			delete state.profiles[options.deleteProfile];
+			saveState();
+			console.log(`Deleted ${options.deleteProfile} profile.`);
+		}
+		else {
+			console.log("No such profile.");
+		}
 		process.exit(0);
 	}
 	if (options.updateApiKey) {
@@ -83,13 +107,16 @@ async function main() {
 
 	const { markdownToConsoleText } = require("./markdown.js");
 
-	const profile = state.profiles[options.profile];
+	const profile = state.profiles[options.profile ?? state.defaultProfile];
 	if (!profile) {
-		if (options.profile == "default") {
-			console.log(markdownToConsoleText("You did not specify a profile, but a default profile does not exist. Use e.g. `slave --create-profile default openai gpt-6-luna` to create one."));
+		if (Object.keys(state.profiles).length == 0) {
+			console.log(markdownToConsoleText("You don't have any profiles. Use e.g. `slave --create-profile luna openai gpt-6-luna --set-default` to create one."));
+		}
+		else if (options.profile) {
+			console.log(markdownToConsoleText(`No such profile. Use e.g. \`slave --create-profile ${options.profile} openai gpt-6-luna\` to create it.`));
 		}
 		else {
-			console.log(markdownToConsoleText(`No such profile. Use e.g. \`slave --create-profile ${options.profile} openai gpt-6-luna\` to create it.`));
+			console.log(markdownToConsoleText(`You did not specify a profile and no profile is set as your default. Use e.g. \`slave --set-default ${Object.keys(state.profiles)[0]}\` to set **${Object.keys(state.profiles)[0]}** as your default profile.`));
 		}
 		process.exit(1);
 	}

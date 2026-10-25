@@ -5,7 +5,9 @@ Vibe coding without the kaboom factor.
 ## Setup
 
 1. Install slave: `npm i -g @calamity-inc/slave`
-2. Create a default profile, e.g. `slave --create-profile default openai gpt-6-luna` or `slave --create-profile default anthropic claude-haiku-5-5`
+2. Create a profile, e.g.:
+  - `slave --create-profile luna openai gpt-6-luna --set-default`
+  - `slave --create-profile haiku anthropic claude-haiku-5-5 --set-default`
 
 ## Usage
 
@@ -30,9 +32,10 @@ Options:
 Single-character flags can be combined, so `slave -cw prompt` is equivalent to `slave -c -w prompt`.
 
 Subcommands:
-- `--create-profile <name> <provider> <model>` — create a profile
+- `--create-profile <name> <provider> <model> [--set-default]` — create a profile
 	- `provider` can be `openai`, `anthropic`, or an OpenAI-compatible base URL like `http://127.0.0.1:1234/v1` for [LM Studio](https://lmstudio.ai/developers).
-- `--update-profile <name> <provider> <model>` — update a profile
+- `--update-profile <name> <provider> <model> [--set-default]` — update a profile
+- `--set-default <profile name>` — set default profile
 - `--list-profiles` — list all profiles
 - `--delete-profile <name>` — delete a profile
 - `--update-api-key <provider>` — update an API Key
