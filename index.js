@@ -213,6 +213,10 @@ const functions = {
 	},
 	sandboxExec: ({ command, args }) => {
 		ensureSandbox();
+		args ??= [];
+		if (typeof args == "string") {
+			args = JSON.parse(args);
+		}
 		const result = spawnSync("docker", [ "exec", "slave-sandbox", command, ...args ], { encoding: "utf8" });
 		const output = (result.stdout ?? "") + (result.stderr ?? "");
 		if (result.error) {
