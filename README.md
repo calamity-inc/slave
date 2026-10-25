@@ -32,6 +32,7 @@ Single-character flags can be combined, so `slave -cw prompt` is equivalent to `
 Subcommands:
 - `--create-profile <name> <provider> <model>` — create a profile
 	- `provider` can be `openai`, `anthropic`, or an OpenAI-compatible base URL like `http://127.0.0.1:1234/v1` for [LM Studio](https://lmstudio.ai/developers).
+- `--update-profile <name> <provider> <model>` — update a profile
 - `--list-profiles` — list all profiles
 - `--delete-profile <name>` — delete a profile
 - `--update-api-key <provider>` — update an API Key

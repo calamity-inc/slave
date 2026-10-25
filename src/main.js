@@ -17,6 +17,7 @@ async function main() {
 		.option("-s, --sandbox", "allow the model to use a docker container")
 		.option("-p, --profile <name>", "profile name", "default")
 		.option("--create-profile <name> <provider> <model>", "create a profile")
+		.option("--update-profile <name> <provider> <model>", "update a profile")
 		.option("--list-profiles", "list all profiles")
 		.option("--delete-profile <name>", "delete a profile")
 		.option("--update-api-key <provider>", "update an API key")
@@ -26,7 +27,7 @@ async function main() {
 
 	const { state, promptForApiKey, saveState, profileToString } = require("./state.js");
 
-	if (options.createProfile) {
+	if (options.createProfile || options.updateProfile) {
 		if (!program.args[0] || !program.args[1]) {
 			console.log("Syntax: slave --create-profile <name> <provider> <model>");
 			process.exit(1);
@@ -36,13 +37,25 @@ async function main() {
 			console.log(`Invalid provider: ${provider}`);
 			process.exit(1);
 		}
-		const isCreate = !(options.createProfile in state.profiles);
-		state.profiles[options.createProfile] = { provider, model: program.args[1] };
+		const name = options.createProfile || options.updateProfile;
+		if (name in state.profiles) {
+			if (options.createProfile) {
+				console.log("Profile already exists. Did you mean --update-profile?");
+				process.exit(1);
+			}
+		}
+		else {
+			if (options.updateProfile) {
+				console.log("No such profile. Did you mean --create-profile?");
+				process.exit(1);
+			}
+		}
+		state.profiles[name] = { provider, model: program.args[1] };
 		if (!state.apiKeys[provider]) {
 			await promptForApiKey(provider);
 		}
 		saveState();
-		console.log(`${isCreate ? "Created" : "Updated"} ${options.createProfile} profile.`);
+		console.log(`${options.createProfile ? "Created" : "Updated"} ${name} profile.`);
 		process.exit(0);
 	}
 	if (options.listProfiles) {
