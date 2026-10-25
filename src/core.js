@@ -195,10 +195,14 @@ const functions = {
 		if (!hostPath) {
 			return "You don't have write access to this file";
 		}
-		if (fs.existsSync(hostPath) && !fs.statSync(hostPath).isFile()) {
+		const isCreate = !fs.existsSync(hostPath);
+		if (!isCreate && !fs.statSync(hostPath).isFile()) {
 			return "Host path must point to a file";
 		}
 		ensureSandbox();
+		if (isCreate) {
+			fs.mkdirSync(path.dirname(hostPath), { recursive: true });
+		}
 		execFileSync("docker", ["cp", "-L", `${sandbox_name}:${sbxPath}`, hostPath], { encoding: "utf8" });
 		return "OK";
 	},
