@@ -120,7 +120,7 @@ const ensureSandbox = () => {
 };
 
 const functions = {
-	ls: ({ path }) => {
+	listFiles: ({ path }) => {
 		path ??= ".";
 		path = fixPath(path);
 		if (!path) {
@@ -264,8 +264,7 @@ const initTools = (fs, sandbox, web_search) => {
 		tools.push(
 			{
 				type: "function",
-				name: "ls",
-				description: "Lists files",
+				name: "listFiles",
 				parameters: {
 					type: "object",
 					properties: {
