@@ -39,6 +39,7 @@ Subcommands:
 - `--list-profiles` — list all profiles
 - `--delete-profile <name>` — delete a profile
 - `--update-api-key <provider>` — update an API Key
+- `--logs` — get info about logs
 - `--skills` — get info about skills
 
 ## Security
@@ -51,13 +52,3 @@ The model can't run commands on your system; it only gets limited access to your
 However, these restrictions are only as good as your practices; you should:
 - Only run `slave` in Git-tracked folders and be sure that anything you don't want to lose is committed or at least staged so you can always revert any changes made by the model.
 - Review changes to your code before running anything, including tests.
-
-## Logs
-
-Each invocation that prompts a model creates a log file:
-
-- Linux: `~/.local/state/slave-nodejs`, or `$XDG_STATE_HOME/slave-nodejs` if `XDG_STATE_HOME` is set
-- macOS: `~/Library/Logs/slave-nodejs`
-- Windows: `%LOCALAPPDATA%\slave-nodejs\Log`
-
-When a new log file is created, any log file older than 30 days is deleted.

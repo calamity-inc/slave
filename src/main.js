@@ -22,6 +22,7 @@ async function main() {
 		.option("--list-profiles", "list all profiles")
 		.option("--delete-profile <name>", "delete a profile")
 		.option("--update-api-key <provider>", "update an API key")
+		.option("--logs", "get info about logs")
 		.option("--skills", "get info about skills")
 		.helpOption("-?, --help", "display help")
 		.parse();
@@ -103,6 +104,12 @@ async function main() {
 		await promptForApiKey(options.updateApiKey);
 		saveState();
 		console.log("Saved.");
+		process.exit(0);
+	}
+	if (options.logs) {
+		const { logDir } = require("./paths.js");
+		console.log(`Each invocation that prompts a model creates a log file in ${logDir}`);
+		console.log(`When a new log file is created, any log file older than 30 days is deleted.`);
 		process.exit(0);
 	}
 	if (options.skills) {
