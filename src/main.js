@@ -220,6 +220,9 @@ async function main() {
 	saveState();
 	if (response.used_tools) {
 		logWriteBoth("");
+		if (getSandboxName()) {
+			execFileSync("docker", ["stop", getSandboxName(), "-t", "0"], { encoding: "utf8" });
+		}
 	}
 	console.log(markdownToConsoleText(response.output_text) + "\n");
 	logWrite(response.output_text);

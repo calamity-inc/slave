@@ -82,7 +82,7 @@ const getSkillResourcePath = (name, resourcePath) => {
 	return [false, "No such skill"];
 };
 
-let sandbox_name;
+let sandbox_name, sandbox_running;
 const getSandboxName = () => {
 	return sandbox_name;
 };
@@ -95,6 +95,10 @@ const ensureSandbox = () => {
 		// `docker pull ghcr.io/calamity-inc/slave-sandbox` is not needed to get the image, but would be needed to update it.
 		execFileSync("docker", ["run", "-d", "--name", sandbox_name, "ghcr.io/calamity-inc/slave-sandbox", "sleep", "infinity"], { encoding: "utf8" });
 	}
+	else if (!sandbox_running) {
+		execFileSync("docker", ["start", sandbox_name], { encoding: "utf8" });
+	}
+	sandbox_running = true;
 };
 const copyFileToSandbox = (hostPath, sbxPath) => {
 	ensureSandbox();
