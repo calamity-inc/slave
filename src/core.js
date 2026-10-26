@@ -8,6 +8,7 @@ const path = require("node:path");
 const ignore = require("ignore");
 
 const { logWrite } = require("./log.js");
+const { skills } = require("./skills.js");
 
 const slaveignore = ignore();
 if (fs.existsSync(".slaveignore")) {
@@ -32,6 +33,11 @@ const isOutOfReach = (p, accessType) => {
 	return false;
 };
 
+const isPathWithinFolder = (folder, p) => {
+	const rel = path.relative(folder, p);
+	return !rel.startsWith("..") && !path.isAbsolute(rel);
+};
+
 const fixPath = (path, accessType) => {
 	if (path.startsWith("/")) {
 		path = path.substring(1);
@@ -54,6 +60,27 @@ const writeFileFromModel = (filePath, data, usesCRLF) => {
 	fs.writeFileSync(filePath, usesCRLF ? normalized.replaceAll("\n", "\r\n") : normalized, "utf8");
 };
 
+const getSystemPrompt = () => {
+	const entries = Object.entries(skills);
+	if (entries.length == 0) {
+		return undefined;
+	}
+	return "You have the following skills available:\n" + entries.map(([name, skill]) => `- ${name}: ${skill.description}`).join("\n");
+};
+const getSkillResourcePath = (name, resourcePath) => {
+	if (name in skills) {
+		const absResourcePath = path.join(skills[name].path, resourcePath); 
+		if (isPathWithinFolder(skills[name].path, absResourcePath)) {
+			if (fs.existsSync(absResourcePath)) {
+				return [true, absResourcePath];
+			}
+			return [false, "No such resource"];
+		}
+		return [false, "I'm gonna call the alignment police on you!!!"];
+	}
+	return [false, "No such skill"];
+};
+
 let sandbox_name;
 const getSandboxName = () => {
 	return sandbox_name;
@@ -66,6 +93,16 @@ const ensureSandbox = () => {
 		sandbox_name = "slave-sandbox-" + Array.from({ length: 10 }, () => "abcdefghijklmnopqrstuvwxyz0123456789"[randomInt(36)]).join("");
 		// `docker pull ghcr.io/calamity-inc/slave-sandbox` is not needed to get the image, but would be needed to update it.
 		execFileSync("docker", ["run", "-d", "--name", sandbox_name, "ghcr.io/calamity-inc/slave-sandbox", "sleep", "infinity"], { encoding: "utf8" });
+	}
+};
+const copyFileToSandbox = (hostPath, sbxPath) => {
+	ensureSandbox();
+	try {
+		execFileSync("docker", ["cp", "-L", hostPath, `${sandbox_name}:${sbxPath}`], { encoding: "utf8" });
+		return "OK";
+	}
+	catch (e) {
+		return (e.stdout ?? e.message).trimEnd();
 	}
 };
 
@@ -181,14 +218,7 @@ const functions = {
 		if (!fs.existsSync(hostPath) || !fs.statSync(hostPath).isFile()) {
 			return "Host path must point to a file";
 		}
-		ensureSandbox();
-		try {
-			execFileSync("docker", ["cp", "-L", hostPath, `${sandbox_name}:${sbxPath}`], { encoding: "utf8" });
-			return "OK";
-		}
-		catch (e) {
-			return (e.stdout ?? e.message).trimEnd();
-		}
+		return copyFileToSandbox(hostPath, sbxPath);
 	},
 	sandboxCopyOut: ({ sbxPath, hostPath }) => {
 		hostPath = fixPath(hostPath, "write");
@@ -205,6 +235,26 @@ const functions = {
 		}
 		execFileSync("docker", ["cp", "-L", `${sandbox_name}:${sbxPath}`, hostPath], { encoding: "utf8" });
 		return "OK";
+	},
+	readSkill: ({ name }) => {
+		if (name in skills) {
+			return readFileForModel(path.join(skills[name].path, "SKILL.md"));
+		}
+		return "No such skill";
+	},
+	readSkillResource: ({ name, path }) => {
+		const [ok, res] = getSkillResourcePath(name, path)
+		if (ok) {
+			return readFileForModel(res);
+		}
+		return res;
+	},
+	copySkillResourceToSandbox: ({ name, path, sbxPath }) => {
+		const [ok, res] = getSkillResourcePath(name, path)
+		if (ok) {
+			return copyFileToSandbox(res, sbxPath);
+		}
+		return res;
 	},
 	/*system: ({ command }) => {
 		//process.exit(1);
@@ -338,6 +388,54 @@ const initTools = (fs, sandbox, web_search) => {
 			);
 		}
 	}
+	if (Object.keys(skills).length) {
+		tools.push(
+			{
+				type: "function",
+				name: "readSkill",
+				parameters: {
+					type: "object",
+					properties: {
+						name: { type: "string" },
+					},
+					required: [ "name" ],
+					additionalProperties: false,
+				},
+				strict: true,
+			},
+			{
+				type: "function",
+				name: "readSkillResource",
+				parameters: {
+					type: "object",
+					properties: {
+						name: { type: "string" },
+						path: { type: "string" },
+					},
+					required: [ "name", "path" ],
+					additionalProperties: false,
+				},
+				strict: true,
+			},
+		);
+		if (sandbox) {
+			tools.push({
+				type: "function",
+				name: "copySkillResourceToSandbox",
+				parameters: {
+					type: "object",
+					properties: {
+						name: { type: "string" },
+						path: { type: "string" },
+						sbxPath: { type: "string" },
+					},
+					required: [ "name", "path", "sbxPath" ],
+					additionalProperties: false,
+				},
+				strict: true,
+			});
+		}
+	}
 	if (web_search) {
 		tools.push({ type: "web_search" });
 	}
@@ -381,6 +479,7 @@ const useTool = (name, args, argsStr) => {
 const openai_generateResponseOptionallyUsingTools = async (client, model, input, state) => {
 	let response = await client.responses.create({
 		model,
+		instructions: getSystemPrompt(),
 		previous_response_id: state,
 		input,
 		tools,
@@ -403,6 +502,7 @@ const openai_generateResponseOptionallyUsingTools = async (client, model, input,
 
 		response = await client.responses.create({
 			model,
+			instructions: getSystemPrompt(),
 			previous_response_id: response.id,
 			input: outputs,
 			tools,
@@ -428,6 +528,7 @@ const anthropic_generateResponseOptionallyUsingTools = async (client, model, inp
 		model,
 		max_tokens: 20000,
 		cache_control: { type: "ephemeral" },
+		system: getSystemPrompt(),
 		messages: state,
 		tools: anthropicTools,
 	});
@@ -455,6 +556,7 @@ const anthropic_generateResponseOptionallyUsingTools = async (client, model, inp
 			model,
 			max_tokens: 20000,
 			cache_control: { type: "ephemeral" },
+			system: getSystemPrompt(),
 			messages: state,
 			tools: anthropicTools,
 		});

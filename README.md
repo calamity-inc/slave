@@ -39,6 +39,7 @@ Subcommands:
 - `--list-profiles` — list all profiles
 - `--delete-profile <name>` — delete a profile
 - `--update-api-key <provider>` — update an API Key
+- `--skills` — get info about skills
 
 ## Security
 

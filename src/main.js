@@ -22,6 +22,7 @@ async function main() {
 		.option("--list-profiles", "list all profiles")
 		.option("--delete-profile <name>", "delete a profile")
 		.option("--update-api-key <provider>", "update an API key")
+		.option("--skills", "get info about skills")
 		.helpOption("-?, --help", "display help")
 		.parse();
 	const options = program.opts();
@@ -104,6 +105,18 @@ async function main() {
 		console.log("Saved.");
 		process.exit(0);
 	}
+	if (options.skills) {
+		const { skillsDir, skills } = require("./skills.js");
+		console.log(`Skills are loaded from ${skillsDir}`);
+		if (Object.keys(skills).length) {
+			console.log();
+			console.log(`Currently there's ${Object.keys(skills).length} skill${Object.keys(skills).length == 1 ? "" : "s"}:`);
+			for (const [name, skill] of Object.entries(skills)) {
+				console.log(`- ${name}: ${skill.description}`);
+			}
+		}
+		process.exit(0);
+	}
 
 	const { markdownToConsoleText } = require("./markdown.js");
 
@@ -134,6 +147,7 @@ async function main() {
 
 	const { initTools, getSandboxName, setSandboxName, anthropic_generateResponseOptionallyUsingTools, openai_generateResponseOptionallyUsingTools } = require("./core.js");
 	const { logWrite, logWriteBoth } = require("./log.js");
+	const { skills } = require("./skills.js");
 
 	let previous_provider_state;
 	const overrides = [profileToString(profile)];
@@ -148,6 +162,9 @@ async function main() {
 	}
 	const filesystemEnabled = options.fs !== false && !options.nofs;
 	initTools(filesystemEnabled, options.sandbox, options.web);
+	if (Object.keys(skills).length) {
+		overrides.push(`${Object.keys(skills).length} skill${Object.keys(skills).length == 1 ? "" : "s"}`);
+	}
 	if (options.web) {
 		overrides.push("web search enabled");
 	}
