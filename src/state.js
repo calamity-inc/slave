@@ -6,9 +6,10 @@ const { createInterface } = require("node:readline/promises");
 const { configDir } = require("./paths.js");
 
 const state = fs.existsSync(path.join(configDir, "state.json")) ? JSON.parse(fs.readFileSync(path.join(configDir, "state.json"), "utf8")) : {};
-state.profiles ??= {};
-state.apiKeys ??= {};
-state.providerStates ??= {};
+const nullProto = (obj) => Object.assign(Object.create(null), obj);
+state.profiles = nullProto(state.profiles);
+state.apiKeys = nullProto(state.apiKeys);
+state.providerStates = nullProto(state.providerStates);
 
 const promptForApiKey = async (provider) => {
 	const readline = createInterface({ input: process.stdin, output: process.stdout });

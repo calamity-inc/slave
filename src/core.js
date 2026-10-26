@@ -69,7 +69,7 @@ const getSystemPrompt = () => {
 	return "You have the following skills available:\n" + entries.map(([name, skill]) => `- ${name}: ${skill.description}`).join("\n");
 };
 const getSkillResourcePath = (name, resourcePath) => {
-	if (name in skills) {
+	if (Object.hasOwn(skills, name)) {
 		const absResourcePath = path.join(skills[name].path, resourcePath); 
 		if (isPathWithinFolder(skills[name].path, absResourcePath)) {
 			if (fs.existsSync(absResourcePath)) {
@@ -107,7 +107,7 @@ const copyFileToSandbox = (hostPath, sbxPath) => {
 	}
 };
 
-const functions = {
+const functions = Object.assign(Object.create(null), {
 	listFiles: ({ path }) => {
 		path ??= ".";
 		path = fixPath(path);
@@ -234,7 +234,7 @@ const functions = {
 		return "OK";
 	},
 	readSkill: ({ name }) => {
-		if (name in skills) {
+		if (Object.hasOwn(skills, name)) {
 			return readFileForModel(path.join(skills[name].path, "SKILL.md"));
 		}
 		return "No such skill";
@@ -257,7 +257,7 @@ const functions = {
 		//process.exit(1);
 		return "It's interesting that you called this tool! Unfortunately for you, it does nothing.";
 	}*/
-};
+});
 
 const tools = [];
 const initTools = (fs, sandbox, web_search) => {

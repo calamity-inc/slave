@@ -41,7 +41,7 @@ async function main() {
 			process.exit(1);
 		}
 		const name = options.createProfile || options.updateProfile;
-		if (name in state.profiles) {
+		if (Object.hasOwn(state.profiles, name)) {
 			if (options.createProfile) {
 				console.error("Profile already exists. Did you mean --update-profile?");
 				process.exit(1);
@@ -90,7 +90,7 @@ async function main() {
 		process.exit(0);
 	}
 	if (options.deleteProfile) {
-		if (options.deleteProfile in state.profiles) {
+		if (Object.hasOwn(state.profiles, options.deleteProfile)) {
 			delete state.profiles[options.deleteProfile];
 			saveState();
 			console.log(`Deleted ${options.deleteProfile} profile.`);

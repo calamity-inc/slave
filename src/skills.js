@@ -39,7 +39,7 @@ const parseFrontmatter = (text) => {
 };
 
 fs.mkdirSync(skillsDir, { recursive: true });
-const skills = {};
+const skills = Object.create(null);
 for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
 	if (entry.isDirectory()) {
 		const skillPath = path.join(skillsDir, entry.name);
