@@ -5,6 +5,7 @@ const { randomInt } = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
+const chalk = require("chalk").default;
 const ignore = require("ignore");
 
 const { logWrite } = require("./log.js");
@@ -518,16 +519,41 @@ const openai_generateResponseOptionallyUsingTools = async (client, model, input,
 	};
 };
 
+const anthropic_streamMessage = (client, res, params) => {
+	const stream = client.messages.stream(params);
+	let thought = "";
+	stream.on("thinking", (delta) => {
+		thought += delta;
+		const i = thought.indexOf("\n\n");
+		if (i != -1) {
+			console.log(chalk.gray(thought.substring(0, i)));
+			logWrite(`[Thought summary: ${thought.substring(0, i)}]`);
+			res.used_tools = true; // Need a newline before response just the same
+			thought = thought.substring(i + 2);
+		}
+	});
+	stream.on("contentBlock", () => {
+		if (thought) {
+			console.log(chalk.gray(thought));
+			logWrite(`[Thought summary: ${thought}]`);
+			res.used_tools = true; // Need a newline before response just the same
+			thought = "";
+		}
+	});
+	return stream.finalMessage();
+};
+
 const anthropic_generateResponseOptionallyUsingTools = async (client, model, input, state) => {
 	state = JSON.parse(state || "[]");
 	state.push({ role: "user", content: input });
-	let used_tools = false;
+	const res = { used_tools: false };
 
 	const anthropicTools = tools.map(t => toolToAnthropic(t));
 
-	let message = await client.messages.create({
+	let message = await anthropic_streamMessage(client, res, {
 		model,
-		max_tokens: 20000,
+		max_tokens: 64000,
+		thinking: { type: "adaptive", display: "summarized" },
 		cache_control: { type: "ephemeral" },
 		system: getSystemPrompt(),
 		messages: state,
@@ -546,16 +572,17 @@ const anthropic_generateResponseOptionallyUsingTools = async (client, model, inp
 				};
 			});
 			state.push({ role: "user", content: outputs });
-			used_tools = true;
+			res.used_tools = true;
 		}
 
 		/*if (message.stop_reason == "max_tokens" && message.content[message.content.length].type == "thinking") {
 			state.push({ role: "user", content: "Please continue from where you left off." });
 		}*/
 
-		message = await client.messages.create({
+		message = await anthropic_streamMessage(client, res, {
 			model,
-			max_tokens: 20000,
+			max_tokens: 64000,
+			thinking: { type: "adaptive", display: "summarized" },
 			cache_control: { type: "ephemeral" },
 			system: getSystemPrompt(),
 			messages: state,
@@ -571,11 +598,9 @@ const anthropic_generateResponseOptionallyUsingTools = async (client, model, inp
 	}
 
 	//console.log(message);
-	return {
-		output_text: message.content.find((item) => item.type == "text").text,
-		state: JSON.stringify(state),
-		used_tools,
-	};
+	res.output_text = message.content.find((item) => item.type == "text").text;
+	res.state = JSON.stringify(state);
+	return res;
 };
 
 module.exports = {
