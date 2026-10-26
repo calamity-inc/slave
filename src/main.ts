@@ -30,7 +30,7 @@ program
 	.parse();
 const options = program.opts();
 
-const { state, promptForApiKey, saveState, profileToString } = await import("./state.js");
+const { state, promptForApiKey, saveState, profileToString } = await import("./state.ts");
 
 if (options.createProfile || options.updateProfile) {
 	if (!program.args[0] || !program.args[1]) {
@@ -109,7 +109,7 @@ if (options.updateApiKey) {
 	process.exit(0);
 }
 if (options.skills) {
-	const { skillsDir, skills } = await import("./skills.js");
+	const { skillsDir, skills } = await import("./skills.ts");
 	console.log(`Skills are loaded from ${skillsDir}`);
 	if (Object.keys(skills).length) {
 		console.log();
@@ -121,13 +121,13 @@ if (options.skills) {
 	process.exit(0);
 }
 if (options.logs) {
-	const { logDir } = await import("./paths.js");
+	const { logDir } = await import("./paths.ts");
 	console.log(`Each invocation that prompts a model creates a log file in ${logDir}`);
 	console.log(`When a new log file is created, any log file older than 30 days is deleted.`);
 	process.exit(0);
 }
 if (options.getSystemPrompt) {
-	const { getSystemPrompt } = await import("./core.js");
+	const { getSystemPrompt } = await import("./core.ts");
 	const sp = getSystemPrompt();
 	if (sp !== undefined) {
 		console.log(sp);
@@ -138,7 +138,7 @@ if (options.getSystemPrompt) {
 	process.exit(0);
 }
 
-const { markdownToConsoleText } = await import("./markdown.js");
+const { markdownToConsoleText } = await import("./markdown.ts");
 
 const profile = state.profiles[options.profile ?? state.defaultProfile];
 if (!profile) {
@@ -158,7 +158,7 @@ let prompt = program.args.join(" ").trim();
 if (options.multiline) {
 	const { createInterface } = await import("node:readline");
 	console.log("Enter your prompt (Ctrl+D on an empty line to finish):");
-	const lines = [];
+	const lines: string[] = [];
 	if (prompt) {
 		lines.push(prompt);
 		console.log("> " + prompt);
@@ -202,11 +202,11 @@ const { execFileSync } = await import("node:child_process");
 const { default: Anthropic } = await import("@anthropic-ai/sdk");
 const { default: OpenAI } = await import("openai");
 
-const { initTools, getSandboxName, setSandboxName, anthropic_generateResponseOptionallyUsingTools, openai_generateResponseOptionallyUsingTools } = await import("./core.js");
-const { logWrite, logWriteBoth } = await import("./log.js");
-const { skills } = await import("./skills.js");
+const { initTools, getSandboxName, setSandboxName, anthropic_generateResponseOptionallyUsingTools, openai_generateResponseOptionallyUsingTools } = await import("./core.ts");
+const { logWrite, logWriteBoth } = await import("./log.ts");
+const { skills } = await import("./skills.ts");
 
-let previous_provider_state;
+let previous_provider_state: string | undefined;
 const overrides = [profileToString(profile)];
 state.providerStates[profile.provider] ??= {};
 if (options.continue || options.cont) {
@@ -253,8 +253,8 @@ logWriteBoth(`(${overrides.join(", ")})\n`);
 /*console.log({ model: profile.model, prompt, previous_provider_state, fsMode });
 return;*/
 
-const clientOpts = {
-	apiKey: state.apiKeys[profile.provider],
+const clientOpts: { apiKey: string; baseURL?: string } = {
+	apiKey: state.apiKeys[profile.provider]!,
 };
 let response;
 if (profile.provider == "anthropic") {
@@ -272,14 +272,14 @@ else {
 state.providerStates[profile.provider].previous_previous = previous_provider_state;
 state.providerStates[profile.provider].previous = response.state;
 if (state.providerStates[profile.provider].sandbox_name && state.providerStates[profile.provider].sandbox_name != getSandboxName()) {
-	execFileSync("docker", ["rm", "-f", state.providerStates[profile.provider].sandbox_name], { encoding: "utf8" });
+	execFileSync("docker", ["rm", "-f", state.providerStates[profile.provider].sandbox_name as string], { encoding: "utf8" });
 }
 state.providerStates[profile.provider].sandbox_name = getSandboxName();
 saveState();
 if (response.used_tools) {
 	logWriteBoth("");
 	if (getSandboxName()) {
-		execFileSync("docker", ["stop", getSandboxName(), "-t", "0"], { encoding: "utf8" });
+		execFileSync("docker", ["stop", getSandboxName() as string, "-t", "0"], { encoding: "utf8" });
 	}
 }
 console.log(markdownToConsoleText(response.output_text) + "\n");

@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { configDir } from "./paths.js";
+import { configDir } from "./paths.ts";
 
 export const skillsDir = path.join(configDir, "skills");
 
-const unquote = (value) => {
+const unquote = (value: string): string => {
 	const first = value[0];
 	if ((first === "\"" || first === "'") && value.at(-1) === first && value.length >= 2) {
 		return value.slice(1, -1);
@@ -12,13 +12,13 @@ const unquote = (value) => {
 	return value;
 };
 
-const parseFrontmatter = (text) => {
+const parseFrontmatter = (text: string): Record<string, string> => {
 	const match = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
 	if (!match) {
 		return {};
 	}
 
-	const fields = {};
+	const fields: Record<string, string> = {};
 	let currentKey = null;
 	for (const line of match[1].split(/\r?\n/)) {
 		const keyValue = /^([\w-]+):\s*(.*)$/.exec(line);
@@ -36,8 +36,13 @@ const parseFrontmatter = (text) => {
 	return fields;
 };
 
+export interface ISkill {
+	path: string;
+	description: string;
+}
+
 fs.mkdirSync(skillsDir, { recursive: true });
-export const skills = Object.create(null);
+export const skills: Record<string, ISkill> = Object.create(null);
 for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
 	if (entry.isDirectory()) {
 		const skillPath = path.join(skillsDir, entry.name);

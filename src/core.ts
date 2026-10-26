@@ -3,12 +3,14 @@ import { randomInt } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import type Anthropic from "@anthropic-ai/sdk";
 import chalk from "chalk";
 import ignore from "ignore";
+import type OpenAI from "openai";
 
-import { logWrite } from "./log.js";
-import { skills } from "./skills.js";
-import { state } from "./state.js";
+import { logWrite } from "./log.ts";
+import { skills } from "./skills.ts";
+import { state } from "./state.ts";
 
 const slaveignore = ignore();
 if (fs.existsSync(".slaveignore")) {
@@ -18,7 +20,7 @@ const gitignore = ignore();
 if (fs.existsSync(".gitignore")) {
 	gitignore.add(fs.readFileSync(".gitignore", "utf8").replaceAll("/\n", "\n"));
 }
-const isOutOfReach = (p, accessType) => {
+const isOutOfReach = (p: string, accessType?: "write"): boolean => {
 	const rel = path.relative(".", p);
 	if (rel.startsWith("..") || path.isAbsolute(rel)) {
 		return true;
@@ -33,12 +35,12 @@ const isOutOfReach = (p, accessType) => {
 	return false;
 };
 
-const isPathWithinFolder = (folder, p) => {
+const isPathWithinFolder = (folder: string, p: string): boolean => {
 	const rel = path.relative(folder, p);
 	return !rel.startsWith("..") && !path.isAbsolute(rel);
 };
 
-const fixPath = (path, accessType) => {
+const fixPath = (path: string, accessType?: "write"): string => {
 	if (path.startsWith("/")) {
 		path = path.substring(1);
 		path ||= ".";
@@ -46,8 +48,8 @@ const fixPath = (path, accessType) => {
 	return isOutOfReach(path, accessType) ? "" : path;
 };
 
-const readFileForModel = (filePath) => fs.readFileSync(filePath, "utf8").replaceAll("\r\n", "\n");
-const writeFileFromModel = (filePath, data, usesCRLF) => {
+const readFileForModel = (filePath: string): string => fs.readFileSync(filePath, "utf8").replaceAll("\r\n", "\n");
+const writeFileFromModel = (filePath: string, data: string, usesCRLF?: boolean): void => {
 	if (fs.existsSync(filePath)) {
 		if (usesCRLF === undefined) {
 			usesCRLF = fs.readFileSync(filePath, "utf8").includes("\r\n");
@@ -60,7 +62,7 @@ const writeFileFromModel = (filePath, data, usesCRLF) => {
 	fs.writeFileSync(filePath, usesCRLF ? normalized.replaceAll("\n", "\r\n") : normalized, "utf8");
 };
 
-export const getSystemPrompt = () => {
+export const getSystemPrompt = (): string | undefined => {
 	const parts = [];
 	if (state.systemPrompt) {
 		parts.push(state.systemPrompt);
@@ -71,7 +73,7 @@ export const getSystemPrompt = () => {
 	}
 	return parts.length ? parts.join("\n\n") : undefined;
 };
-const getSkillResourcePath = (name, resourcePath) => {
+const getSkillResourcePath = (name: string, resourcePath: string): [boolean, string] => {
 	if (Object.hasOwn(skills, name)) {
 		const absResourcePath = path.join(skills[name].path, resourcePath); 
 		if (isPathWithinFolder(skills[name].path, absResourcePath)) {
@@ -85,14 +87,15 @@ const getSkillResourcePath = (name, resourcePath) => {
 	return [false, "No such skill"];
 };
 
-let sandbox_name, sandbox_running;
-export const getSandboxName = () => {
+let sandbox_name: string | undefined;
+let sandbox_running = false;
+export const getSandboxName = (): string | undefined => {
 	return sandbox_name;
 };
-export const setSandboxName = (sn) => {
+export const setSandboxName = (sn: string | undefined): void => {
 	sandbox_name = sn;
 };
-const ensureSandbox = () => {
+const ensureSandbox = (): void => {
 	if (!sandbox_name) {
 		sandbox_name = "slave-sandbox-" + Array.from({ length: 10 }, () => "abcdefghijklmnopqrstuvwxyz0123456789"[randomInt(36)]).join("");
 		// `docker pull ghcr.io/calamity-inc/slave-sandbox` is not needed to get the image, but would be needed to update it.
@@ -103,19 +106,25 @@ const ensureSandbox = () => {
 	}
 	sandbox_running = true;
 };
-const copyFileToSandbox = (hostPath, sbxPath) => {
+interface ExecError extends Error {
+    stdout?: string;
+    stderr?: string;
+    status?: number | null;
+    signal?: NodeJS.Signals | null;
+}
+const copyFileToSandbox = (hostPath: string, sbxPath: string): string => {
 	ensureSandbox();
 	try {
 		execFileSync("docker", ["cp", "-L", hostPath, `${sandbox_name}:${sbxPath}`], { encoding: "utf8" });
 		return "OK";
 	}
 	catch (e) {
-		return (e.stdout ?? e.message).trimEnd();
+		return ((e as ExecError).stdout ?? (e as ExecError).message).trimEnd();
 	}
 };
 
 const functions = Object.assign(Object.create(null), {
-	listFiles: ({ path }) => {
+	listFiles: ({ path }: { path?: string | null }): string => {
 		path ??= ".";
 		path = fixPath(path);
 		if (!path) {
@@ -126,11 +135,11 @@ const functions = Object.assign(Object.create(null), {
 			files = fs.readdirSync(path, { withFileTypes: true });
 		}
 		catch (e) {
-			return e.code;
+			return (e as NodeJS.ErrnoException).code!;
 		}
 		return JSON.stringify(files.map(dirent => dirent.isDirectory() ? `${dirent.name}/` : dirent.name));
 	},
-	findFiles: ({ path, substring, recursive }) => {
+	findFiles: ({ path, substring, recursive }: { path?: string | null; substring: string; recursive?: boolean | null }): string => {
 		path ??= ".";
 		path = fixPath(path);
 		if (!path) {
@@ -138,10 +147,10 @@ const functions = Object.assign(Object.create(null), {
 		}
 		let files;
 		try {
-			files = fs.readdirSync(path, { withFileTypes: true, recursive });
+			files = fs.readdirSync(path, { withFileTypes: true, recursive: Boolean(recursive) });
 		}
 		catch (e) {
-			return e.code;
+			return (e as NodeJS.ErrnoException).code!;
 		}
 		files = files.filter(dirent => dirent.isFile())
 			.map(dirent => {
@@ -165,7 +174,7 @@ const functions = Object.assign(Object.create(null), {
 		}
 		return res.join("\n");
 	},
-	readFile: ({ path }) => {
+	readFile: ({ path }: { path: string }): string => {
 		path = fixPath(path);
 		if (!path) {
 			return "You don't have read access to this file";
@@ -179,7 +188,7 @@ const functions = Object.assign(Object.create(null), {
 		}
 		return cont;
 	},
-	writeFile: ({ path, data }) => {
+	writeFile: ({ path, data }: { path: string; data: string }): string => {
 		path = fixPath(path, "write");
 		if (!path) {
 			return "You don't have write access to this file";
@@ -187,7 +196,7 @@ const functions = Object.assign(Object.create(null), {
 		writeFileFromModel(path, data);
 		return "OK";
 	},
-	fileFindAndReplace: ({ path, substring, replacement, expectedMatches }) => {
+	fileFindAndReplace: ({ path, substring, replacement, expectedMatches }: { path: string; substring: string; replacement: string; expectedMatches?: number | null }): string => {
 		path = fixPath(path, "write");
 		if (!path) {
 			return "You don't have write access to this file";
@@ -202,9 +211,9 @@ const functions = Object.assign(Object.create(null), {
 		writeFileFromModel(path, arr.join(replacement), usesCRLF);
 		return "OK";
 	},
-	sandboxExec: ({ command, args }) => {
+	sandboxExec: ({ command, args }: { command: string; args: string[] }): string => {
 		ensureSandbox();
-		const result = spawnSync("docker", [ "exec", sandbox_name, command, ...args ], { encoding: "utf8" });
+		const result = spawnSync("docker", [ "exec", sandbox_name!, command, ...args ], { encoding: "utf8" });
 		const output = (result.stdout ?? "") + (result.stderr ?? "");
 		if (result.error) {
 			return (output || result.error.message).trimEnd();
@@ -214,7 +223,7 @@ const functions = Object.assign(Object.create(null), {
 		}
 		return output;
 	},
-	sandboxCopyIn: ({ hostPath, sbxPath }) => {
+	sandboxCopyIn: ({ hostPath, sbxPath }: { hostPath: string; sbxPath: string }): string => {
 		hostPath = fixPath(hostPath);
 		if (!hostPath) {
 			return "You don't have read access to this file";
@@ -224,7 +233,7 @@ const functions = Object.assign(Object.create(null), {
 		}
 		return copyFileToSandbox(hostPath, sbxPath);
 	},
-	sandboxCopyOut: ({ sbxPath, hostPath }) => {
+	sandboxCopyOut: ({ sbxPath, hostPath }: { sbxPath: string; hostPath: string }): string => {
 		hostPath = fixPath(hostPath, "write");
 		if (!hostPath) {
 			return "You don't have write access to this file";
@@ -240,20 +249,20 @@ const functions = Object.assign(Object.create(null), {
 		execFileSync("docker", ["cp", "-L", `${sandbox_name}:${sbxPath}`, hostPath], { encoding: "utf8" });
 		return "OK";
 	},
-	readSkill: ({ name }) => {
+	readSkill: ({ name }: { name: string }): string => {
 		if (Object.hasOwn(skills, name)) {
 			return readFileForModel(path.join(skills[name].path, "SKILL.md"));
 		}
 		return "No such skill";
 	},
-	readSkillResource: ({ name, path }) => {
+	readSkillResource: ({ name, path }: { name: string; path: string }): string => {
 		const [ok, res] = getSkillResourcePath(name, path)
 		if (ok) {
 			return readFileForModel(res);
 		}
 		return res;
 	},
-	copySkillResourceToSandbox: ({ name, path, sbxPath }) => {
+	copySkillResourceToSandbox: ({ name, path, sbxPath }: { name: string; path: string; sbxPath: string }): string => {
 		const [ok, res] = getSkillResourcePath(name, path)
 		if (ok) {
 			return copyFileToSandbox(res, sbxPath);
@@ -266,8 +275,8 @@ const functions = Object.assign(Object.create(null), {
 	}*/
 });
 
-const tools = [];
-export const initTools = (fs, sandbox, web_search) => {
+const tools: OpenAI.Responses.Tool[] = [];
+export const initTools = (fs: boolean | "readonly", sandbox: boolean, web_search: boolean): void => {
 	if (fs) {
 		tools.push(
 			{
@@ -450,24 +459,25 @@ export const initTools = (fs, sandbox, web_search) => {
 	}
 };
 
-const toolToAnthropic = (t) => {
+const toolToAnthropic = (t: OpenAI.Responses.Tool): Anthropic.ToolUnion => {
 	if (t.type == "function") {
 		return {
 			name: t.name,
 			description: t.description,
 			input_schema: t.parameters,
 			strict: t.strict,
-		};
+		} as Anthropic.Tool;
 	}
 	else if (t.type == "web_search") {
 		return {
 			type: "web_search_20260318",
 			name: "web_search"
-		};
+		} satisfies Anthropic.WebSearchTool20260318;
 	}
+	throw new Error(`failed to convert tool to anthropic format: ${t.type}`);
 };
 
-const printJunk = (line) => {
+const printJunk = (line: string): void => {
 	logWrite(line);
 	line = line.replaceAll("\r", "<CR>").replaceAll("\n", "<NL>").replaceAll("\t", "    ");
 	if (line.length > 80) {
@@ -476,14 +486,20 @@ const printJunk = (line) => {
 	console.log(line);
 }
 
-const useTool = (name, args, argsStr) => {
+const useTool = (name: string, args: string[], argsStr: string): string => {
 	printJunk("$ " + name + argsStr);
 	const output = String(functions[name](args));
 	printJunk(output);
 	return output;
 };
 
-export const openai_generateResponseOptionallyUsingTools = async (client, model, input, state) => {
+interface IResponse {
+	output_text: string;
+	state: string;
+	used_tools: boolean;
+}
+
+export const openai_generateResponseOptionallyUsingTools = async (client: OpenAI, model: string, input: string, state?: string): Promise<IResponse> => {
 	let response = await client.responses.create({
 		model,
 		instructions: getSystemPrompt(),
@@ -511,7 +527,7 @@ export const openai_generateResponseOptionallyUsingTools = async (client, model,
 			model,
 			instructions: getSystemPrompt(),
 			previous_response_id: response.id,
-			input: outputs,
+			input: outputs as any, // ResponseFunctionToolCallOutputItem (not exported) says a 'status' must exist but only because of responses, not requests :derp:
 			tools,
 		});
 		used_tools = true;
@@ -524,7 +540,7 @@ export const openai_generateResponseOptionallyUsingTools = async (client, model,
 	};
 };
 
-const anthropic_streamMessage = (client, res, params) => {
+const anthropic_streamMessage = (client: Anthropic, res: { used_tools: boolean }, params: Anthropic.MessageStreamParams): Promise<Anthropic.Message> => {
 	const stream = client.messages.stream(params);
 	let thought = "";
 	stream.on("thinking", (delta) => {
@@ -548,10 +564,10 @@ const anthropic_streamMessage = (client, res, params) => {
 	return stream.finalMessage();
 };
 
-export const anthropic_generateResponseOptionallyUsingTools = async (client, model, input, state) => {
-	state = JSON.parse(state || "[]");
-	state.push({ role: "user", content: input });
-	const res = { used_tools: false };
+export const anthropic_generateResponseOptionallyUsingTools = async (client: Anthropic, model: string, input: string, state?: string): Promise<IResponse> => {
+	const messages = JSON.parse(state || "[]") as Anthropic.MessageParam[];
+	messages.push({ role: "user", content: input });
+	const res: { used_tools: boolean } = { used_tools: false };
 
 	const anthropicTools = tools.map(t => toolToAnthropic(t));
 
@@ -561,10 +577,10 @@ export const anthropic_generateResponseOptionallyUsingTools = async (client, mod
 		thinking: { type: "adaptive", display: "summarized" },
 		cache_control: { type: "ephemeral" },
 		system: getSystemPrompt(),
-		messages: state,
+		messages,
 		tools: anthropicTools,
 	});
-	state.push({ role: message.role, content: message.content });
+	messages.push({ role: message.role, content: message.content });
 
 	while (message.stop_reason == "tool_use" || message.stop_reason == "pause_turn") {
 		const toolCalls = message.content.filter((item) => item.type == "tool_use");
@@ -573,15 +589,15 @@ export const anthropic_generateResponseOptionallyUsingTools = async (client, mod
 				return {
 					type: "tool_result",
 					tool_use_id: call.id,
-					content: useTool(call.name, call.input, JSON.stringify(call.input))
-				};
+					content: useTool(call.name, call.input as string[], JSON.stringify(call.input))
+				} satisfies Anthropic.ContentBlockParam;
 			});
-			state.push({ role: "user", content: outputs });
+			messages.push({ role: "user", content: outputs });
 			res.used_tools = true;
 		}
 
 		/*if (message.stop_reason == "max_tokens" && message.content[message.content.length].type == "thinking") {
-			state.push({ role: "user", content: "Please continue from where you left off." });
+			messages.push({ role: "user", content: "Please continue from where you left off." });
 		}*/
 
 		message = await anthropic_streamMessage(client, res, {
@@ -590,10 +606,10 @@ export const anthropic_generateResponseOptionallyUsingTools = async (client, mod
 			thinking: { type: "adaptive", display: "summarized" },
 			cache_control: { type: "ephemeral" },
 			system: getSystemPrompt(),
-			messages: state,
+			messages,
 			tools: anthropicTools,
 		});
-		state.push({ role: message.role, content: message.content });
+		messages.push({ role: message.role, content: message.content });
 	}
 
 	if (message.stop_reason != "end_turn") {
@@ -603,7 +619,9 @@ export const anthropic_generateResponseOptionallyUsingTools = async (client, mod
 	}
 
 	//console.log(message);
-	res.output_text = message.content.find((item) => item.type == "text").text;
-	res.state = JSON.stringify(state);
-	return res;
+	return {
+		...res,
+		output_text: message.content.find((item) => item.type == "text")!.text,
+		state: JSON.stringify(messages),
+	}
 };
