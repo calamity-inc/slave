@@ -1,8 +1,6 @@
-"use strict";
-
-const fs = require("node:fs");
-const path = require("node:path");
-const { logDir } = require("./paths.js");
+import fs from "node:fs";
+import path from "node:path";
+import { logDir } from "./paths.js";
 
 const rotateLogs = () => {
 	const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -19,7 +17,7 @@ const rotateLogs = () => {
 };
 
 let logFh;
-const logWrite = (line) => {
+export const logWrite = (line) => {
 	if (!logFh) {
 		const now = new Date();
 		const pad = (n) => String(n).padStart(2, '0');
@@ -30,9 +28,7 @@ const logWrite = (line) => {
 	}
 	fs.writeSync(logFh, line + "\n");
 };
-const logWriteBoth = (line) => {
+export const logWriteBoth = (line) => {
 	console.log(line);
 	logWrite(line);
 };
-
-module.exports = { logWrite, logWriteBoth };

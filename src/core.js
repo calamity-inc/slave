@@ -1,16 +1,14 @@
-"use strict";
+import { execFileSync, spawnSync } from "node:child_process";
+import { randomInt } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
-const { execFileSync, spawnSync } = require("node:child_process");
-const { randomInt } = require("node:crypto");
-const fs = require("node:fs");
-const path = require("node:path");
+import chalk from "chalk";
+import ignore from "ignore";
 
-const chalk = require("chalk").default;
-const ignore = require("ignore");
-
-const { logWrite } = require("./log.js");
-const { skills } = require("./skills.js");
-const { state } = require("./state.js");
+import { logWrite } from "./log.js";
+import { skills } from "./skills.js";
+import { state } from "./state.js";
 
 const slaveignore = ignore();
 if (fs.existsSync(".slaveignore")) {
@@ -62,7 +60,7 @@ const writeFileFromModel = (filePath, data, usesCRLF) => {
 	fs.writeFileSync(filePath, usesCRLF ? normalized.replaceAll("\n", "\r\n") : normalized, "utf8");
 };
 
-const getSystemPrompt = () => {
+export const getSystemPrompt = () => {
 	const parts = [];
 	if (state.systemPrompt) {
 		parts.push(state.systemPrompt);
@@ -88,10 +86,10 @@ const getSkillResourcePath = (name, resourcePath) => {
 };
 
 let sandbox_name, sandbox_running;
-const getSandboxName = () => {
+export const getSandboxName = () => {
 	return sandbox_name;
 };
-const setSandboxName = (sn) => {
+export const setSandboxName = (sn) => {
 	sandbox_name = sn;
 };
 const ensureSandbox = () => {
@@ -269,7 +267,7 @@ const functions = Object.assign(Object.create(null), {
 });
 
 const tools = [];
-const initTools = (fs, sandbox, web_search) => {
+export const initTools = (fs, sandbox, web_search) => {
 	if (fs) {
 		tools.push(
 			{
@@ -485,7 +483,7 @@ const useTool = (name, args, argsStr) => {
 	return output;
 };
 
-const openai_generateResponseOptionallyUsingTools = async (client, model, input, state) => {
+export const openai_generateResponseOptionallyUsingTools = async (client, model, input, state) => {
 	let response = await client.responses.create({
 		model,
 		instructions: getSystemPrompt(),
@@ -550,7 +548,7 @@ const anthropic_streamMessage = (client, res, params) => {
 	return stream.finalMessage();
 };
 
-const anthropic_generateResponseOptionallyUsingTools = async (client, model, input, state) => {
+export const anthropic_generateResponseOptionallyUsingTools = async (client, model, input, state) => {
 	state = JSON.parse(state || "[]");
 	state.push({ role: "user", content: input });
 	const res = { used_tools: false };
@@ -608,13 +606,4 @@ const anthropic_generateResponseOptionallyUsingTools = async (client, model, inp
 	res.output_text = message.content.find((item) => item.type == "text").text;
 	res.state = JSON.stringify(state);
 	return res;
-};
-
-module.exports = {
-	getSystemPrompt,
-	initTools,
-	getSandboxName,
-	setSandboxName,
-	openai_generateResponseOptionallyUsingTools,
-	anthropic_generateResponseOptionallyUsingTools,
 };

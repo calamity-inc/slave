@@ -5,7 +5,7 @@
 		"url": "git+https://github.com/calamity-inc/slave.git"
 	},
 	"version": "0.4.2",
-	"type": "commonjs",
+	"type": "module",
 	"bin": {
 		"slave": "src/main.js"
 	},

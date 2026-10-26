@@ -1,9 +1,3 @@
-"use strict";
+import envPaths from "env-paths";
 
-const envPaths = require("env-paths").default;
-
-const { data, log } = envPaths("slave");
-module.exports = {
-	configDir: data,
-	logDir: log,
-};
+export const { data: configDir, log: logDir } = envPaths("slave");

@@ -1,10 +1,8 @@
-"use strict";
+import fs from "node:fs";
+import path from "node:path";
+import { configDir } from "./paths.js";
 
-const fs = require("node:fs");
-const path = require("node:path");
-const { configDir } = require("./paths.js");
-
-const skillsDir = path.join(configDir, "skills");
+export const skillsDir = path.join(configDir, "skills");
 
 const unquote = (value) => {
 	const first = value[0];
@@ -39,7 +37,7 @@ const parseFrontmatter = (text) => {
 };
 
 fs.mkdirSync(skillsDir, { recursive: true });
-const skills = Object.create(null);
+export const skills = Object.create(null);
 for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
 	if (entry.isDirectory()) {
 		const skillPath = path.join(skillsDir, entry.name);
@@ -59,5 +57,3 @@ for (const entry of fs.readdirSync(skillsDir, { withFileTypes: true })) {
 		};
 	}
 }
-
-module.exports = { skillsDir, skills };
