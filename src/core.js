@@ -24,7 +24,7 @@ const isOutOfReach = (p, accessType) => {
 		return true;
 	}
 	const segs = rel.split(path.sep);
-	if (segs.includes(".env") || segs.includes(".git")) {
+	if (segs.includes(".git") || segs.some(seg => seg.startsWith(".env"))) {
 		return true;
 	}
 	if (rel && (slaveignore.ignores(rel) || (accessType == "write" && gitignore.ignores(rel)))) {

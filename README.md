@@ -44,10 +44,9 @@ Subcommands:
 ## Security
 
 The model can't run commands on your system; it only gets limited access to your filesystem:
-- Within the working directory and subdirectories.
-- `.git` folder and `.env` file can't be accessed by the model, tho it knows they exist, if they do.
+- Restricted to the working directory and its subdirectories.
+- Can't read the `.git` folder, `.env` files, or any files excluded by `.slaveignore`. Although the model will still be able to know of their existence.
 - Files that are `.gitignore`d can't be written to.
-- You can provide a `.slaveignore` for files that the model should not be allowed to read or write. It will still be able to know of their existence.
 
 However, these restrictions are only as good as your practices; you should:
 - Only run `slave` in Git-tracked folders and be sure that anything you don't want to lose is committed or at least staged so you can always revert any changes made by the model.
