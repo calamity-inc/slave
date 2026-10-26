@@ -282,6 +282,7 @@ const initTools = (fs, sandbox, web_search) => {
 			{
 				type: "function",
 				name: "findFiles",
+				description: "Searches the contents of files for a literal text string",
 				parameters: {
 					type: "object",
 					properties: {
