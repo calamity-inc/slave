@@ -10,6 +10,7 @@ async function main() {
 		.usage("[options] [--] [prompt...]")
 		.description("Vibe coding without the kaboom factor.")
 		.argument("[prompt...]")
+		.option("--long, --multiline", "write a multiline prompt")
 		.option("-c, --continue", "add your previous invocation to the context of this one").option("--cont")
 		.option("-a, --amend", "retry the previous invocation, using the context from before it")
 		.option("-w, --web", "allow the model to search the web")
@@ -142,6 +143,28 @@ async function main() {
 	}
 
 	let prompt = program.args.join(" ").trim();
+	if (options.multiline) {
+		const { createInterface } = require("node:readline");
+		console.log("Enter your prompt (Ctrl+D on an empty line to finish):");
+		const lines = [];
+		if (prompt) {
+			lines.push(prompt);
+			console.log("> " + prompt);
+		}
+		prompt = await new Promise((resolve) => {
+			const rl = createInterface({ input: process.stdin, output: process.stdout });
+			rl.setPrompt("> ");
+			rl.prompt();
+			rl.on("line", (line) => {
+				lines.push(line);
+				rl.prompt();
+			});
+			rl.on("close", () => {
+				resolve(lines.join("\n"));
+			});
+		});
+		console.log("\n");
+	}
 	if (!prompt) {
 		console.error("No prompt given.");
 		process.exit(1);
@@ -182,18 +205,21 @@ async function main() {
 		overrides.push("sandbox enabled");
 	}
 
-	logWriteBoth((previous_provider_state ? "FOLLOW-UP" : "PROMPT") + ": " + prompt);
+	let printedPrompt = prompt.replaceAll("\r", "<CR>").replaceAll("\n", "<NL>").replaceAll("\t", "    ");
 	if (!process.stdin.isTTY) {
 		const chunks = [];
 		for await (const chunk of process.stdin) {
 			chunks.push(chunk);
 		}
 		prompt = `${Buffer.concat(chunks).toString("utf8")}\n\n${prompt}`;
-		overrides.push("stdin provided");
+		printedPrompt = `[stdin]<NL><NL>${printedPrompt}`;
 	}
+	console.log((previous_provider_state ? "FOLLOW-UP" : "PROMPT") + ": " + printedPrompt);
+	logWrite((previous_provider_state ? "FOLLOW-UP" : "PROMPT") + ": " + prompt);
 	logWriteBoth(`(${overrides.join(", ")})\n`);
 
-	//console.log({ model: profile.model, prompt, previous_provider_state });
+	/*console.log({ model: profile.model, prompt, previous_provider_state });
+	return;*/
 
 	const clientOpts = {
 		apiKey: state.apiKeys[profile.provider],

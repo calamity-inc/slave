@@ -22,12 +22,13 @@ cat yap.txt | slave Summarize this text
 ```
 
 Options:
-- `-c`, `--cont`, `--continue` — add your previous invocation to the context of this one
-- `-a`, `--amend` — retry the previous invocation, using the context from before it
-- `-w`, `--web` — allow the model to search the web
-- `-n`, `--no-fs`, `--nofs` — disable filesystem access
-- `-s`, `--sandbox` — allow the model to use a docker container
-- `-p`, `--profile` `<name>` — use the specified profile
+- `--long`/`--multiline` — write a multiline prompt (mutually exclusive with piping text in)
+- `-c`/`--cont`/`--continue` — add your previous invocation to the context of this one
+- `-a`/`--amend` — retry the previous invocation, using the context from before it
+- `-w`/`--web` — allow the model to search the web
+- `-n`/`--no-fs`/`--nofs` — disable filesystem access
+- `-s`/`--sandbox` — allow the model to use a docker container
+- `-p`/`--profile` `<name>` — use the specified profile
 
 Single-character flags can be combined, so `slave -cw prompt` is equivalent to `slave -c -w prompt`.
 
