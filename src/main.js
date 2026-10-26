@@ -24,8 +24,10 @@ async function main() {
 		.option("--list-profiles", "list all profiles")
 		.option("--delete-profile <name>", "delete a profile")
 		.option("--update-api-key <provider>", "update an API key")
-		.option("--logs", "get info about logs")
+		.option("--set-system, --set-system-prompt", "set or clear the system prompt")
+		.option("--get-system, --get-system-prompt", "get the system prompt")
 		.option("--skills", "get info about skills")
+		.option("--logs", "get info about logs")
 		.helpOption("-?, --help", "display help")
 		.parse();
 	const options = program.opts();
@@ -108,12 +110,6 @@ async function main() {
 		console.log("Saved.");
 		process.exit(0);
 	}
-	if (options.logs) {
-		const { logDir } = require("./paths.js");
-		console.log(`Each invocation that prompts a model creates a log file in ${logDir}`);
-		console.log(`When a new log file is created, any log file older than 30 days is deleted.`);
-		process.exit(0);
-	}
 	if (options.skills) {
 		const { skillsDir, skills } = require("./skills.js");
 		console.log(`Skills are loaded from ${skillsDir}`);
@@ -123,6 +119,23 @@ async function main() {
 			for (const [name, skill] of Object.entries(skills)) {
 				console.log(`- ${name}: ${skill.description}`);
 			}
+		}
+		process.exit(0);
+	}
+	if (options.logs) {
+		const { logDir } = require("./paths.js");
+		console.log(`Each invocation that prompts a model creates a log file in ${logDir}`);
+		console.log(`When a new log file is created, any log file older than 30 days is deleted.`);
+		process.exit(0);
+	}
+	if (options.getSystemPrompt) {
+		const { getSystemPrompt } = require("./core.js");
+		const sp = getSystemPrompt();
+		if (sp !== undefined) {
+			console.log(sp);
+		}
+		else {
+			console.log("No system prompt.");
 		}
 		process.exit(0);
 	}
@@ -166,6 +179,21 @@ async function main() {
 		});
 		console.log("\n");
 	}
+	let printedPrompt = prompt.replaceAll("\r", "<CR>").replaceAll("\n", "<NL>").replaceAll("\t", "    ");
+
+	if (options.setSystemPrompt) {
+		state.systemPrompt = prompt.trim();
+		if (state.systemPrompt) {
+			console.log("Set custom system prompt: " + printedPrompt);
+		}
+		else {
+			delete state.systemPrompt;
+			console.log("Cleared custom system prompt.");
+		}
+		saveState();
+		process.exit(0);
+	}
+
 	if (!prompt) {
 		console.error("No prompt given.");
 		process.exit(1);
@@ -193,6 +221,9 @@ async function main() {
 	}
 	const fsMode = (options.fs !== false && !options.nofs) && (options.readonly ? "readonly" : true);
 	initTools(fsMode, options.sandbox, options.web);
+	if (state.systemPrompt) {
+		overrides.push("custom system prompt");
+	}
 	if (Object.keys(skills).length) {
 		overrides.push(`${Object.keys(skills).length} skill${Object.keys(skills).length == 1 ? "" : "s"}`);
 	}
@@ -209,7 +240,6 @@ async function main() {
 		overrides.push("sandbox enabled");
 	}
 
-	let printedPrompt = prompt.replaceAll("\r", "<CR>").replaceAll("\n", "<NL>").replaceAll("\t", "    ");
 	if (!process.stdin.isTTY) {
 		const chunks = [];
 		for await (const chunk of process.stdin) {

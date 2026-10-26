@@ -10,6 +10,7 @@ const ignore = require("ignore");
 
 const { logWrite } = require("./log.js");
 const { skills } = require("./skills.js");
+const { state } = require("./state.js");
 
 const slaveignore = ignore();
 if (fs.existsSync(".slaveignore")) {
@@ -62,11 +63,15 @@ const writeFileFromModel = (filePath, data, usesCRLF) => {
 };
 
 const getSystemPrompt = () => {
-	const entries = Object.entries(skills);
-	if (entries.length == 0) {
-		return undefined;
+	const parts = [];
+	if (state.systemPrompt) {
+		parts.push(state.systemPrompt);
 	}
-	return "You have the following skills available:\n" + entries.map(([name, skill]) => `- ${name}: ${skill.description}`).join("\n");
+	const skillEntries = Object.entries(skills);
+	if (skillEntries.length) {
+		parts.push("You have the following skills available:\n" + skillEntries.map(([name, skill]) => `- ${name}: ${skill.description}`).join("\n"));
+	}
+	return parts.length ? parts.join("\n\n") : undefined;
 };
 const getSkillResourcePath = (name, resourcePath) => {
 	if (Object.hasOwn(skills, name)) {
@@ -606,6 +611,7 @@ const anthropic_generateResponseOptionallyUsingTools = async (client, model, inp
 };
 
 module.exports = {
+	getSystemPrompt,
 	initTools,
 	getSandboxName,
 	setSandboxName,

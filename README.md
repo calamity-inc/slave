@@ -34,15 +34,17 @@ Options:
 Single-character flags can be combined, so `slave -cw prompt` is equivalent to `slave -c -w prompt`.
 
 Subcommands:
-- `--create-profile <name> <provider> <model> [--set-default]` — create a profile
+- `--create-profile` `<name>` `<provider>` `<model>` `[--set-default]` — create a profile
 	- `provider` can be `openai`, `anthropic`, or an OpenAI-compatible base URL like `http://127.0.0.1:1234/v1` for [LM Studio](https://lmstudio.ai/developers).
-- `--update-profile <name> <provider> <model> [--set-default]` — update a profile
-- `--set-default <profile name>` — set default profile
+- `--update-profile` `<name>` `<provider>` `<model>` `[--set-default]` — update a profile
+- `--set-default` `<profile name>` — set default profile
 - `--list-profiles` — list all profiles
-- `--delete-profile <name>` — delete a profile
-- `--update-api-key <provider>` — update an API Key
-- `--logs` — get info about logs
+- `--delete-profile` `<name>` — delete a profile
+- `--update-api-key` `<provider>` — update an API Key
+- `--set-system`/`--set-system-prompt` `[prompt]` `[--long|--multiline]` — set or clear the system prompt
+- `--get-system`/`--get-system-prompt` — get the system prompt
 - `--skills` — get info about skills
+- `--logs` — get info about logs
 
 ## Security
 
