@@ -309,37 +309,41 @@ const initTools = (fs, sandbox, web_search) => {
 				},
 				strict: true,
 			},
-			{
-				type: "function",
-				name: "writeFile",
-				parameters: {
-					type: "object",
-					properties: {
-						path: { type: "string" },
-						data: { type: "string" },
-					},
-					required: [ "path", "data" ],
-					additionalProperties: false,
-				},
-				strict: true,
-			},
-			{
-				type: "function",
-				name: "fileFindAndReplace",
-				parameters: {
-					type: "object",
-					properties: {
-						path: { type: "string" },
-						substring: { type: "string" },
-						replacement: { type: "string" },
-						expectedMatches: { type: ["number", "null"] },
-					},
-					required: [ "path", "substring", "replacement", "expectedMatches" ],
-					additionalProperties: false,
-				},
-				strict: true,
-			},
 		);
+		if (fs != "readonly") {
+			tools.push(
+				{
+					type: "function",
+					name: "writeFile",
+					parameters: {
+						type: "object",
+						properties: {
+							path: { type: "string" },
+							data: { type: "string" },
+						},
+						required: [ "path", "data" ],
+						additionalProperties: false,
+					},
+					strict: true,
+				},
+				{
+					type: "function",
+					name: "fileFindAndReplace",
+					parameters: {
+						type: "object",
+						properties: {
+							path: { type: "string" },
+							substring: { type: "string" },
+							replacement: { type: "string" },
+							expectedMatches: { type: ["number", "null"] },
+						},
+						required: [ "path", "substring", "replacement", "expectedMatches" ],
+						additionalProperties: false,
+					},
+					strict: true,
+				},
+			);
+		}
 	}
 	if (sandbox) {
 		tools.push({
@@ -358,22 +362,22 @@ const initTools = (fs, sandbox, web_search) => {
 			strict: true,
 		});
 		if (fs) {
-			tools.push(
-				{
-					type: "function",
-					name: "sandboxCopyIn",
-					parameters: {
-						type: "object",
-						properties: {
-							hostPath: { type: "string" },
-							sbxPath: { type: "string" },
-						},
-						required: [ "hostPath", "sbxPath" ],
-						additionalProperties: false,
+			tools.push({
+				type: "function",
+				name: "sandboxCopyIn",
+				parameters: {
+					type: "object",
+					properties: {
+						hostPath: { type: "string" },
+						sbxPath: { type: "string" },
 					},
-					strict: true,
+					required: [ "hostPath", "sbxPath" ],
+					additionalProperties: false,
 				},
-				{
+				strict: true,
+			});
+			if (fs != "readonly") {
+				tools.push({
 					type: "function",
 					name: "sandboxCopyOut",
 					parameters: {
@@ -386,8 +390,8 @@ const initTools = (fs, sandbox, web_search) => {
 						additionalProperties: false,
 					},
 					strict: true,
-				},
-			);
+				});
+			}
 		}
 	}
 	if (Object.keys(skills).length) {

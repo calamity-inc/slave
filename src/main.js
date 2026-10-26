@@ -15,6 +15,7 @@ async function main() {
 		.option("-a, --amend", "retry the previous invocation, using the context from before it")
 		.option("-w, --web", "allow the model to search the web")
 		.option("-n, --no-fs", "disable filesystem access").option("--nofs")
+		.option("-r, --readonly", "disable filesystem write access")
 		.option("-s, --sandbox", "allow the model to use a docker container")
 		.option("-p, --profile <name>", "profile name")
 		.option("--create-profile <name> <provider> <model>", "create a profile")
@@ -190,16 +191,19 @@ async function main() {
 		previous_provider_state = state.providerStates[profile.provider].previous_previous;
 		setSandboxName(state.providerStates[profile.provider].sandbox_name);
 	}
-	const filesystemEnabled = options.fs !== false && !options.nofs;
-	initTools(filesystemEnabled, options.sandbox, options.web);
+	const fsMode = (options.fs !== false && !options.nofs) && (options.readonly ? "readonly" : true);
+	initTools(fsMode, options.sandbox, options.web);
 	if (Object.keys(skills).length) {
 		overrides.push(`${Object.keys(skills).length} skill${Object.keys(skills).length == 1 ? "" : "s"}`);
 	}
 	if (options.web) {
 		overrides.push("web search enabled");
 	}
-	if (!filesystemEnabled) {
+	if (!fsMode) {
 		overrides.push("no filesystem access");
+	}
+	else if (fsMode == "readonly") {
+		overrides.push("read-only filesystem access");
 	}
 	if (options.sandbox) {
 		overrides.push("sandbox enabled");
@@ -218,7 +222,7 @@ async function main() {
 	logWrite((previous_provider_state ? "FOLLOW-UP" : "PROMPT") + ": " + prompt);
 	logWriteBoth(`(${overrides.join(", ")})\n`);
 
-	/*console.log({ model: profile.model, prompt, previous_provider_state });
+	/*console.log({ model: profile.model, prompt, previous_provider_state, fsMode });
 	return;*/
 
 	const clientOpts = {
