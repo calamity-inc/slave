@@ -197,10 +197,6 @@ const functions = {
 	},
 	sandboxExec: ({ command, args }) => {
 		ensureSandbox();
-		args ??= [];
-		if (typeof args == "string") {
-			args = JSON.parse(args);
-		}
 		const result = spawnSync("docker", [ "exec", sandbox_name, command, ...args ], { encoding: "utf8" });
 		const output = (result.stdout ?? "") + (result.stderr ?? "");
 		if (result.error) {
@@ -448,10 +444,8 @@ const toolToAnthropic = (t) => {
 		return {
 			name: t.name,
 			description: t.description,
-			input_schema: {
-				type: t.parameters.type,
-				properties: t.parameters.properties,
-			}
+			input_schema: t.parameters,
+			strict: t.strict,
 		};
 	}
 	else if (t.type == "web_search") {
