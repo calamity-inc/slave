@@ -115,7 +115,11 @@ interface ExecError extends Error {
 const copyFileToSandbox = (hostPath: string, sbxPath: string): string => {
 	ensureSandbox();
 	try {
-		execFileSync("docker", ["cp", "-L", hostPath, `${sandbox_name}:${sbxPath}`], { encoding: "utf8" });
+		const dir = path.dirname(sbxPath);
+		if (dir != "." && dir != "/") {
+			execFileSync("docker", ["exec", sandbox_name!, "mkdir", "-p", path.dirname(sbxPath)], { encoding: "utf8" });
+		}
+		execFileSync("docker", ["cp", "-L", hostPath, `${sandbox_name!}:${sbxPath}`], { encoding: "utf8" });
 		return "OK";
 	}
 	catch (e) {
