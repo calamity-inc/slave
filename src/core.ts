@@ -159,7 +159,7 @@ const functions = Object.assign(Object.create(null), {
 		files = files.filter(dirent => dirent.isFile())
 			.map(dirent => {
 				if (dirent.parentPath != ".") {
-					return `${dirent.parentPath.replaceAll("\\", "/")}/${dirent.name}`
+					return `${dirent.parentPath.replaceAll("\\", "/")}/${dirent.name}`;
 				}
 				return dirent.name;
 			})
